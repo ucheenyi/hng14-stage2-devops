@@ -1,0 +1,28 @@
+# Environment files — NEVER commit these
+.env
+*.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Docker
+*.tar
+
+# Trivy output
+*.sarif
+
+# OS
+.DS_Store
+Thumbs.db
