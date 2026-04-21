@@ -4,11 +4,11 @@ import os
 import signal
 
 r = redis.Redis(
-    host=os.environ.get("REDIS_HOST", "redis"),   # Fix #2: was hardcoded "localhost"
+    host=os.environ.get("REDIS_HOST", "redis"),
     port=int(os.environ.get("REDIS_PORT", 6379)),
 )
 
-stop = False                                       # Fix #11: signal was imported but never used
+stop = False
 
 
 def handle_sigterm(sig, frame):
@@ -27,7 +27,7 @@ def process_job(job_id):
 
 
 while not stop:
-    job = r.brpop("jobs_queue", timeout=5)         # must match key used in api/main.py
+    job = r.brpop("jobs_queue", timeout=5)
     if job:
         _, job_id = job
         process_job(job_id.decode())

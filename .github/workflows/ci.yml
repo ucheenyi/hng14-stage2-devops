@@ -10,33 +10,44 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+
       - name: Install flake8
         run: pip install flake8
+
       - name: Lint Python API
         run: flake8 api/ --max-line-length=120 --exclude=api/tests
+
       - name: Lint Python Worker
         run: flake8 worker/ --max-line-length=120
+
       - name: Set up Node 20
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-      - name: Install frontend deps
+
+      - name: Install frontend dependencies
         run: cd frontend && npm install
+
       - name: Lint JavaScript
         run: cd frontend && npx eslint app.js
+
       - name: Lint Dockerfile API
         uses: hadolint/hadolint-action@v3.1.0
         with:
           dockerfile: api/Dockerfile
+
       - name: Lint Dockerfile Worker
         uses: hadolint/hadolint-action@v3.1.0
         with:
           dockerfile: worker/Dockerfile
+
       - name: Lint Dockerfile Frontend
         uses: hadolint/hadolint-action@v3.1.0
         with:
@@ -47,17 +58,22 @@ jobs:
     runs-on: ubuntu-latest
     needs: lint
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install dependencies
-        run: pip install -r api/requirements.txt pytest pytest-cov httpx
+
+      - name: Install API dependencies
+        run: pip install -r api/requirements.txt
+
       - name: Run unit tests with coverage
         run: |
           cd api
           pytest tests/ -v --cov=. --cov-report=xml:coverage.xml --cov-report=term-missing
+
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
         with:
@@ -74,26 +90,46 @@ jobs:
         ports:
           - 5000:5000
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
         with:
           driver-opts: network=host
-      - name: Build and push API
-        run: |
-          docker build -t localhost:5000/api:${{ github.sha }} -t localhost:5000/api:latest ./api
-          docker push localhost:5000/api:${{ github.sha }}
-          docker push localhost:5000/api:latest
-      - name: Build and push Worker
-        run: |
-          docker build -t localhost:5000/worker:${{ github.sha }} -t localhost:5000/worker:latest ./worker
-          docker push localhost:5000/worker:${{ github.sha }}
-          docker push localhost:5000/worker:latest
-      - name: Build and push Frontend
-        run: |
-          docker build -t localhost:5000/frontend:${{ github.sha }} -t localhost:5000/frontend:latest ./frontend
-          docker push localhost:5000/frontend:${{ github.sha }}
-          docker push localhost:5000/frontend:latest
+
+      - name: Build and push API image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./api
+          push: true
+          tags: |
+            localhost:5000/api:${{ github.sha }}
+            localhost:5000/api:latest
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+
+      - name: Build and push Worker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./worker
+          push: true
+          tags: |
+            localhost:5000/worker:${{ github.sha }}
+            localhost:5000/worker:latest
+          cache-from: type=gha,scope=worker
+          cache-to: type=gha,mode=max,scope=worker
+
+      - name: Build and push Frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: true
+          tags: |
+            localhost:5000/frontend:${{ github.sha }}
+            localhost:5000/frontend:latest
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
 
   security-scan:
     name: Security Scan
@@ -105,17 +141,39 @@ jobs:
         ports:
           - 5000:5000
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
         with:
           driver-opts: network=host
-      - name: Rebuild images for scanning
-        run: |
-          docker build -t localhost:5000/api:latest ./api
-          docker build -t localhost:5000/worker:latest ./worker
-          docker build -t localhost:5000/frontend:latest ./frontend
-      - name: Scan API with Trivy
+
+      - name: Rebuild API image for scanning
+        uses: docker/build-push-action@v5
+        with:
+          context: ./api
+          push: true
+          tags: localhost:5000/api:latest
+          cache-from: type=gha,scope=api
+
+      - name: Rebuild Worker image for scanning
+        uses: docker/build-push-action@v5
+        with:
+          context: ./worker
+          push: true
+          tags: localhost:5000/worker:latest
+          cache-from: type=gha,scope=worker
+
+      - name: Rebuild Frontend image for scanning
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: true
+          tags: localhost:5000/frontend:latest
+          cache-from: type=gha,scope=frontend
+
+      - name: Scan API image with Trivy
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: localhost:5000/api:latest
@@ -126,7 +184,8 @@ jobs:
           ignore-unfixed: true
           scanners: vuln
           limit-severities-for-sarif: true
-      - name: Scan Worker with Trivy
+
+      - name: Scan Worker image with Trivy
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: localhost:5000/worker:latest
@@ -137,7 +196,8 @@ jobs:
           ignore-unfixed: true
           scanners: vuln
           limit-severities-for-sarif: true
-      - name: Scan Frontend with Trivy
+
+      - name: Scan Frontend image with Trivy
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: localhost:5000/frontend:latest
@@ -148,6 +208,7 @@ jobs:
           ignore-unfixed: true
           scanners: vuln
           limit-severities-for-sarif: true
+
       - name: Upload Trivy SARIF results
         if: always()
         uses: actions/upload-artifact@v4
@@ -160,48 +221,24 @@ jobs:
     runs-on: ubuntu-latest
     needs: security-scan
     steps:
-      - uses: actions/checkout@v4
-      - name: Create .env from example
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create env file
         run: cp .env.example .env
+
       - name: Start full stack
         run: docker compose up --build -d
-      - name: Wait for frontend health
+
+      - name: Run integration test script
         run: |
-          for i in $(seq 1 18); do
-            if curl -sf http://localhost:3000/health > /dev/null 2>&1; then
-              echo "Frontend healthy after $((i * 5))s"
-              break
-            fi
-            if [ "$i" -eq 18 ]; then
-              echo "Frontend never became healthy"
-              docker compose logs
-              exit 1
-            fi
-            echo "Attempt $i/18 - retrying in 5s..."
-            sleep 5
-          done
-      - name: Submit a job
-        id: submit_job
-        run: |
-          RESPONSE=$(curl -sf -X POST http://localhost:3000/submit -H "Content-Type: application/json")
-          echo "Response: $RESPONSE"
-          JOB_ID=$(echo "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['job_id'])")
-          echo "job_id=$JOB_ID" >> "$GITHUB_OUTPUT"
-      - name: Poll until completed
-        run: |
-          JOB_ID="${{ steps.submit_job.outputs.job_id }}"
-          for i in $(seq 1 24); do
-            STATUS=$(curl -sf "http://localhost:3000/status/$JOB_ID" | python3 -c "import sys,json; print(json.load(sys.stdin)['status'])")
-            echo "Attempt $i - status: $STATUS"
-            if [ "$STATUS" = "completed" ]; then
-              echo "Job completed successfully"
-              exit 0
-            fi
-            sleep 5
-          done
-          echo "Job did not complete within 120s"
-          docker compose logs
-          exit 1
+          chmod +x integration-test.sh
+          timeout 180 ./integration-test.sh
+
+      - name: Print logs on failure
+        if: failure()
+        run: docker compose logs
+
       - name: Tear down stack
         if: always()
         run: docker compose down -v
@@ -212,7 +249,9 @@ jobs:
     needs: integration-test
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Rolling deploy via SSH
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}

@@ -1,17 +1,16 @@
-# Environment files — NEVER commit these
+# Environment files — NEVER commit real secrets
 .env
 *.env
-.env.*
 !.env.example
 
 # Python
 __pycache__/
 *.pyc
 *.pyo
-.pytest_cache/
 .coverage
 coverage.xml
 htmlcov/
+.pytest_cache/
 
 # Node
 node_modules/
@@ -20,9 +19,9 @@ npm-debug.log*
 # Docker
 *.tar
 
-# Trivy output
-*.sarif
+# IDE
+.vscode/
+.idea/
 
-# OS
-.DS_Store
-Thumbs.db
+# Security scan output
+*.sarif

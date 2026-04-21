@@ -4,7 +4,7 @@ services:
     restart: unless-stopped
     networks:
       - app-net
-    # No ports: block — Redis must NOT be exposed on the host
+    # No ports: block — Redis is NOT exposed to the host
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
