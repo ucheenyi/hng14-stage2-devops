@@ -125,7 +125,7 @@ jobs:
           severity: CRITICAL
           ignore-unfixed: true
           scanners: vuln
-          skip-version-check: true
+          limit-severities-for-sarif: true
       - name: Scan Worker with Trivy
         uses: aquasecurity/trivy-action@master
         with:
@@ -136,7 +136,7 @@ jobs:
           severity: CRITICAL
           ignore-unfixed: true
           scanners: vuln
-          skip-version-check: true
+          limit-severities-for-sarif: true
       - name: Scan Frontend with Trivy
         uses: aquasecurity/trivy-action@master
         with:
@@ -147,7 +147,7 @@ jobs:
           severity: CRITICAL
           ignore-unfixed: true
           scanners: vuln
-          skip-version-check: true
+          limit-severities-for-sarif: true
       - name: Upload Trivy SARIF results
         if: always()
         uses: actions/upload-artifact@v4
